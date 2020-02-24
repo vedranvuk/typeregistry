@@ -1,0 +1,40 @@
+package typeregistry
+
+import (
+	"testing"
+	"time"
+)
+
+type TestA = struct {
+	Name string
+}
+
+type TestB = struct {
+	Age int
+}
+
+type TestC = struct {
+	when time.Time
+}
+
+func TestRegistry(t *testing.T) {
+	r := New()
+	if err := r.Register("TestA", TestA{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Register("TestB", TestB{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Register("TestC", TestC{}); err != nil {
+		t.Fatal(err)
+	}
+
+	v, err := r.Get("TestC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ok := v.(TestC)
+	if !ok {
+		t.Fatal("fail")
+	}
+}
