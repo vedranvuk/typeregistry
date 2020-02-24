@@ -65,6 +65,9 @@ func (r *Registry) Unregister(name string) error {
 
 // Get creates a new instance of a registered type by specified name.
 func (r *Registry) Get(name string) (interface{}, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	t, ok := r.entries[name]
 	if !ok {
 		return nil, ErrNotFound.WrapArgs(name)
