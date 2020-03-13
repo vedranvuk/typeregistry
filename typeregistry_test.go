@@ -44,7 +44,7 @@ func TestRegistry(t *testing.T) {
 		t.Fatal("fail")
 	}
 
-	if testex.Verbose {
+	if testex.Verbose() {
 		t.Log(rv)
 	}
 }
