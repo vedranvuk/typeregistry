@@ -7,8 +7,6 @@ package typeregistry
 import (
 	"testing"
 	"time"
-
-	"github.com/vedranvuk/testex"
 )
 
 type TestA = struct {
@@ -39,12 +37,9 @@ func TestRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rv, ok := v.(TestC)
+	_, ok := v.(TestC)
 	if !ok {
 		t.Fatal("fail")
 	}
 
-	if testex.Verbose() {
-		t.Log(rv)
-	}
 }
