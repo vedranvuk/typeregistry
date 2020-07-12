@@ -1,8 +1,8 @@
-// Copyright 2019 Vedran Vuk. All rights reserved.
+// Copyright 2020 Vedran Vuk. All rights reserved.
 // Use of this source code is governed by a MIT
 // license that can be found in the LICENSE file.
 
-// Package typeregistry implements a simple type registry that maps go types to custom names.
+// Package typeregistry implements a simple type registry.
 package typeregistry
 
 import (
@@ -18,7 +18,8 @@ var (
 	ErrTypeRegistry = errorex.New("typeregistry")
 	// ErrNotFound is returned when a type was not found in the registry.
 	ErrNotFound = ErrTypeRegistry.WrapFormat("entry '%s' not found")
-	// ErrDuplicateEntry is returned when registering a type that is alreday registered.
+	// ErrDuplicateEntry is returned when registering a type that is already
+	// registered.
 	ErrDuplicateEntry = ErrTypeRegistry.WrapFormat("entry '%s' already exists")
 )
 
