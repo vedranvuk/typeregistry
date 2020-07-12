@@ -7,6 +7,7 @@ package typeregistry
 
 import (
 	"reflect"
+	"sort"
 	"sync"
 
 	"github.com/vedranvuk/errorex"
@@ -36,8 +37,25 @@ func New() *Registry {
 	return p
 }
 
-// Register registers a type of value v under specified name.
-func (r *Registry) Register(name string, v interface{}) error {
+// Register registers a reflect.Type of value specified by v under its'
+// reflect.Type name or returns an error.
+func (r *Registry) Register(v interface{}) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	t := reflect.ValueOf(v).Type()
+	if _, exists := r.entries[t.String()]; exists {
+		return ErrDuplicateEntry.WrapArgs(t.String())
+	}
+
+	r.entries[t.String()] = t
+
+	return nil
+}
+
+// RegisterNamed registers a reflect.Type of value specified by v under
+// specified name or returns an error.
+func (r *Registry) RegisterNamed(name string, v interface{}) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -50,7 +68,8 @@ func (r *Registry) Register(name string, v interface{}) error {
 	return nil
 }
 
-// Unregister unregisters a type by name/type name.
+// Unregister unregisters a reflect.Type registered under specified name or
+// returns an error.
 func (r *Registry) Unregister(name string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -63,14 +82,34 @@ func (r *Registry) Unregister(name string) error {
 	return nil
 }
 
-// Get creates a new instance of a registered type by specified name.
-func (r *Registry) Get(name string) (interface{}, error) {
+// GetType returns a registered reflect.Type specified by name or an error.
+func (r *Registry) GetType(name string) (reflect.Type, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	t, ok := r.entries[name]
 	if !ok {
 		return nil, ErrNotFound.WrapArgs(name)
+	}
+	return t, nil
+}
+
+// GetValue returns a new reflect.Value of reflect.Type registered under
+// specified name or an error.
+func (r *Registry) GetValue(name string) (reflect.Value, error) {
+	t, err := r.GetType(name)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+	return reflect.New(t).Elem(), nil
+}
+
+// GetInterface returns an interface to a new reflect.Value of reflect.Type
+// registered under specified name or an error.
+func (r *Registry) GetInterface(name string) (interface{}, error) {
+	t, err := r.GetType(name)
+	if err != nil {
+		return reflect.Value{}, err
 	}
 	return reflect.New(t).Elem().Interface(), nil
 }
@@ -84,5 +123,6 @@ func (r *Registry) RegisteredNames() []string {
 	for key := range r.entries {
 		names = append(names, key)
 	}
+	sort.Strings(names)
 	return names
 }
