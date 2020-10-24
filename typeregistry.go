@@ -21,6 +21,9 @@ var (
 	// ErrDuplicateEntry is returned when registering a type that is already
 	// registered.
 	ErrDuplicateEntry = ErrTypeRegistry.WrapFormat("entry '%s' already exists")
+	// ErrInvalidParam is returned when an invalid parameter was passed to
+	// a registration method.
+	ErrInvalidParam = ErrTypeRegistry.Wrap("invalid parameter")
 )
 
 // Registry is a Go type registry.
@@ -38,25 +41,53 @@ func New() *Registry {
 	return p
 }
 
+// GetLongTypeName gets the long Type name of a Go value contained in i.
+// If i is a pointer it dereferences it prefixing resulting string with a "*"
+// for each level until it reaches concrete type or a zero value in which case
+// it appends "(nil)" to the string. In between is a path constructed of
+// "PkgPath/TypeName".
+// e.g. "***github.com/vedranvuk/typeregistry/typeregistry.Registry(nil)".
+//
+// GetLongTypeName is used by Register function to generate the type name.
+// Name for retrieval of types registered by Register should be generated
+// by this function.
+func GetLongTypeName(i interface{}) (r string) {
+	if i == nil {
+		return
+	}
+	v := reflect.ValueOf(i)
+	for v.Kind() == reflect.Ptr && !v.IsZero() {
+		r += "*"
+		v = v.Elem()
+	}
+	if s := v.Type().PkgPath(); s != "" {
+		r += s + "/"
+	}
+	r += v.Type().String()
+	if v.IsZero() {
+		if r[0] == '*' {
+			r += "(nil)"
+		} else {
+			r += "(zero)"
+		}
+	}
+	return
+}
+
 // Register registers a reflect.Type of value specified by v under its'
 // reflect.Type name or returns an error.
 func (r *Registry) Register(v interface{}) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	t := reflect.ValueOf(v).Type()
-	if _, exists := r.entries[t.String()]; exists {
-		return ErrDuplicateEntry.WrapArgs(t.String())
-	}
-
-	r.entries[t.String()] = t
-
-	return nil
+	return r.RegisterNamed(GetLongTypeName(v), v)
 }
 
 // RegisterNamed registers a reflect.Type of value specified by v under
 // specified name or returns an error.
 func (r *Registry) RegisterNamed(name string, v interface{}) error {
+
+	if v == nil {
+		return ErrInvalidParam
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
