@@ -43,10 +43,9 @@ func New() *Registry {
 
 // GetLongTypeName gets the long Type name of a Go value contained in i.
 // If i is a pointer it dereferences it prefixing resulting string with a "*"
-// for each level until it reaches concrete type or a zero value in which case
-// it appends "(nil)" to the string. In between is a path constructed of
-// "PkgPath/TypeName".
-// e.g. "***github.com/vedranvuk/typeregistry/typeregistry.Registry(nil)".
+// for each level until it reaches concrete type for which it appends the type
+// path constructed as "PkgPath/TypeName".
+// e.g. "***github.com/vedranvuk/typeregistry/typeregistry.Registry".
 //
 // GetLongTypeName is used by Register function to generate the type name.
 // Name for retrieval of types registered by Register should be generated
@@ -64,13 +63,6 @@ func GetLongTypeName(i interface{}) (r string) {
 		r += s + "/"
 	}
 	r += v.Type().String()
-	if v.IsZero() {
-		if r[0] == '*' {
-			r += "(nil)"
-		} else {
-			r += "(zero)"
-		}
-	}
 	return
 }
 
@@ -146,7 +138,7 @@ func (r *Registry) GetInterface(name string) (interface{}, error) {
 	return reflect.New(t).Elem().Interface(), nil
 }
 
-// RegisteredNames returns a slice of registered names.
+// RegisteredNames returns a slice of registered type names.
 func (r *Registry) RegisteredNames() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
