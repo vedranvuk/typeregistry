@@ -6,7 +6,7 @@ New instances of registered types are later instantiated using reflect by type n
 
 ## Example
 
-```
+```go
 // Registering a type by name.
 
 func main() {
@@ -33,6 +33,7 @@ func main() {
 Full API consists of following:
 
 ```
+GetLongTypeName(i interface{}) string
 Register(v interface{}) error
 RegisterNamed(name string, v interface{}) error
 Unregister(name string) error
