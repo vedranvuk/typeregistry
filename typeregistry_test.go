@@ -10,99 +10,119 @@ import (
 	"testing"
 )
 
-type Foo struct {
-	Val int
-}
-
-type PFoo *Foo
-
-func TestRegister(t *testing.T) {
-
-	type Test struct {
-		Err      error
-		Expected string
-		Type     interface{}
-	}
-
-	var (
-		v          = Foo{}
-		pv         = &v
-		ppv        = &pv
-		tpv   PFoo = &v
-		ptpv       = &tpv
-		ntpv  PFoo = nil
-		pntpv      = &ntpv
-	)
-
-	tests := []Test{
-		{ErrInvalidParam, "", nil},
-		{nil, "", v},
-		{nil, "", pv},
-		{nil, "", ppv},
-		{ErrDuplicateEntry, "", tpv},
-		{ErrDuplicateEntry, "", ptpv},
-		{nil, "", ntpv},
-		{nil, "", pntpv},
-	}
-
+func TestTypeRegistry(t *testing.T) {
+	type Foo struct{ _ bool }
+	type Bar struct{ _ bool }
 	reg := New()
-	for _, item := range tests {
-		if err := reg.Register(item.Type); !errors.Is(err, item.Err) {
-			t.Fatal(err)
+	foo := &Foo{}
+	bar := &Bar{}
+	fooname := GetLongTypeName(foo)
+	barname := GetLongTypeName(bar)
+
+	if err := reg.Register(foo); err != nil {
+		t.Fatal(err)
+	}
+	if err := reg.RegisterNamed(barname, bar); err != nil {
+		t.Fatal(err)
+	}
+	if err := reg.Register(bar); !errors.Is(err, ErrDuplicateEntry) {
+		t.Fatal("Register failed.")
+	}
+	if err := reg.RegisterNamed("", foo); err != ErrInvalidParam {
+		t.Fatal(err)
+	}
+	if err := reg.RegisterNamed(barname, nil); err != ErrInvalidParam {
+		t.Fatal(err)
+	}
+
+	rn := reg.RegisteredNames()
+	exprn := []string{
+		barname,
+		fooname,
+	}
+	for idx, name := range rn {
+		if exprn[idx] != name {
+			t.Fatal("RegisteredNames failed.")
 		}
 	}
-}
 
-func TestUnregister(t *testing.T) {
-
-	v := &Foo{}
-
-	reg := New()
-	if err := reg.Register(v); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := reg.Unregister(GetLongTypeName(v)); err != nil {
-		t.Fatal(err)
-	}
-	if err := reg.Unregister(GetLongTypeName(v)); !errors.Is(err, ErrNotFound) {
-		t.Fatal(err)
-	}
-}
-
-func TestGet(t *testing.T) {
-
-	v := &Foo{}
-
-	reg := New()
-	if err := reg.Register(v); err != nil {
-		t.Fatal(err)
-	}
-
-	rt, err := reg.GetType(GetLongTypeName(v))
+	rt, err := reg.GetType(GetLongTypeName(foo))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if !reflect.DeepEqual(reflect.ValueOf(v).Type(), rt) {
+	if _, err = reg.GetType("baz"); !errors.Is(err, ErrNotFound) {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(reflect.ValueOf(foo).Type(), rt) {
 		t.Fatal("Invalid type returned.")
 	}
 
-	rv, err := reg.GetValue(GetLongTypeName(v))
+	rv, err := reg.GetValue(GetLongTypeName(foo))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if !reflect.DeepEqual(reflect.ValueOf(v).Type(), rv.Type()) {
+	if _, err = reg.GetValue("baz"); !errors.Is(err, ErrNotFound) {
+		t.Fatal("GetValue failed.")
+	}
+	if !reflect.DeepEqual(reflect.ValueOf(foo).Type(), rv.Type()) {
 		t.Fatal("Invalid value returned.")
 	}
 
-	ri, err := reg.GetInterface(GetLongTypeName(v))
+	ri, err := reg.GetInterface(GetLongTypeName(foo))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if !reflect.DeepEqual(reflect.ValueOf(v).Type(), reflect.ValueOf(ri).Type()) {
+	if _, err = reg.GetInterface("baz"); !errors.Is(err, ErrNotFound) {
+		t.Fatal("GetInterface failed.")
+	}
+	if !reflect.DeepEqual(reflect.ValueOf(foo).Type(), reflect.ValueOf(ri).Type()) {
 		t.Fatal("Invalid interface returned.")
+	}
+
+	if err := reg.Unregister("foo"); !errors.Is(err, ErrNotFound) {
+		t.Fatal("Unregister failed.")
+	}
+	if err := reg.Unregister(fooname); err != nil {
+		t.Fatal()
+	}
+	if err := reg.Unregister(barname); err != nil {
+		t.Fatal()
+	}
+	if len(reg.RegisteredNames()) != 0 {
+		t.Fatal("Unregister failed.")
+	}
+}
+
+func TestGetLongTypeName(t *testing.T) {
+	type alias int
+	type palias *alias
+	var valias alias = 42
+	var vpalias palias = &valias
+	if GetLongTypeName(nil) != "" {
+		t.Fatal("GetLongTypeName failed.")
+	}
+	if GetLongTypeName(int(0)) != "int" {
+		t.Fatal("GetLongTypeName failed.")
+	}
+	if GetLongTypeName(string("")) != "string" {
+		t.Fatal("GetLongTypeName failed.")
+	}
+	if GetLongTypeName(valias) != "github.com/vedranvuk/typeregistry/typeregistry.alias" {
+		t.Fatal("GetLongTypeName failed.")
+	}
+	if GetLongTypeName(alias(0)) != "github.com/vedranvuk/typeregistry/typeregistry.alias" {
+		t.Fatal("GetLongTypeName failed.")
+	}
+	if GetLongTypeName(alias(42)) != "github.com/vedranvuk/typeregistry/typeregistry.alias" {
+		t.Fatal("GetLongTypeName failed.")
+	}
+	if GetLongTypeName(vpalias) != "*github.com/vedranvuk/typeregistry/typeregistry.alias" {
+		t.Fatal("GetLongTypeName failed.")
+	}
+	if GetLongTypeName(palias(nil)) != "github.com/vedranvuk/typeregistry/typeregistry.palias" {
+		t.Fatal("GetLongTypeName failed.")
+	}
+	if GetLongTypeName(palias(vpalias)) != "*github.com/vedranvuk/typeregistry/typeregistry.alias" {
+		t.Fatal("GetLongTypeName failed.")
 	}
 }
